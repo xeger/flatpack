@@ -123,7 +123,8 @@ func read(data Getter, name []string, value reflect.Value) error {
 	case reflect.Struct:
 		unmarshal(data, name, value.Addr().Interface())
 	default:
-		fmt.Println("Skipping", name)
+		// TODO something less impolite!!
+		panic(fmt.Sprintf("Don't know how to deal with %v", value.Interface()))
 	}
 
 	return err
