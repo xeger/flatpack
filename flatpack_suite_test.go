@@ -9,5 +9,5 @@ import (
 
 func TestFlatpack(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Books Suite")
+	RunSpecs(t, "Flatpack Suite")
 }

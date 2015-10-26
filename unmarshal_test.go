@@ -1,13 +1,10 @@
-package flatpack_test
+package flatpack
 
 import (
-	"fmt"
-	"strings"
+	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	"github.com/xeger/flatpack"
 )
 
 type family struct {
@@ -16,53 +13,49 @@ type family struct {
 }
 
 type person struct {
-	Email   string
-	Age     int
-	Family  family
-	Numbers []int
+	Email        string
+	Age          int
+	Family       family
+	LuckyNumbers []int
 }
 
-type stubGetter map[string]string
-
-func (s stubGetter) Get(name []string) (string, error) {
-	fullName := ""
-	for _, v := range name {
-		sep := "_"
-		if fullName == "" {
-			sep = ""
-		}
-		fullName = fmt.Sprintf("%s%s%s", fullName, sep, strings.ToUpper(v))
+// Create a Getter that acts like a flatpack.processEnvironment but actually
+// reads from a map, not from the process environment.
+func stubEnvironment(pairs map[string]string) Getter {
+	lookupEnv := func(key string) (string, bool) {
+		value, ok := pairs[key]
+		return value, ok
 	}
-	v, ok := s[fullName]
-	if ok {
-		return v, nil
-	} else {
-		panic(fmt.Errorf("Test failed: code tried to read unexpected key %v", fullName))
-	}
+	return processEnvironment{lookupEnv}
 }
 
 var _ = Describe("Unmarshal", func() {
-	It("works", func() {
-		getter := stubGetter{
+	Context("given a processEnvironment data source", func() {
+		getter := stubEnvironment(map[string]string{
 			"EMAIL":           "carol@example.com",
 			"AGE":             "37",
 			"FAMILY_MOTHER":   "Alice",
 			"FAMILY_FATHER":   "Bob",
 			"FAMILY_SIBLINGS": "[\"Dave\", \"Eve\"]",
-			"NUMBERS":         "[3,7,11,42,76]",
-		}
+			"LUCKY_NUMBERS":   "[3,7,11,42,76]",
+		})
 
-		expected := person{
-			Email: "carol@example.com",
-			Age:   37,
-			Family: family{Mother: "Alice", Father: "Bob",
-				Siblings: []string{"Dave", "Eve"}},
-			Numbers: []int{3, 7, 11, 42, 76},
-		}
+		BeforeEach(func() { DataSource = getter })
+		AfterEach(func() { DataSource = processEnvironment{os.LookupEnv} })
 
-		got := person{}
-		Expect(flatpack.Unmarshal(getter, &got)).To(BeNil())
+		It("populates the configuration", func() {
+			expected := person{
+				Email: "carol@example.com",
+				Age:   37,
+				Family: family{Mother: "Alice", Father: "Bob",
+					Siblings: []string{"Dave", "Eve"}},
+				LuckyNumbers: []int{3, 7, 11, 42, 76},
+			}
 
-		Expect(got).To(Equal(expected))
+			got := person{}
+			Expect(Unmarshal(&got)).To(BeNil())
+
+			Expect(got).To(Equal(expected))
+		})
 	})
 })
