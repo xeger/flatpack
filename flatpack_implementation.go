@@ -137,8 +137,15 @@ func (f flatpack) read(name []string, value reflect.Value) error {
 		}
 	case reflect.Struct:
 		f.unmarshal(name, value.Addr().Interface())
+	case reflect.Ptr:
+		// Handle pointers by allocating if necessary, then recursively calling
+		// ourselves.
+		if value.IsNil() {
+			value.Set(reflect.New(value.Type().Elem()))
+		}
+		err = f.read(name, value.Elem())
 	default:
-		err = fmt.Errorf("invalid value for %v;  unsupported type %v", name, value.Type().Name())
+		err = fmt.Errorf("invalid value for %v;  unsupported type %v", name, value.Type())
 	}
 
 	return err
