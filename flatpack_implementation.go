@@ -14,11 +14,11 @@ type flatpack struct {
 
 // Unmarshal reads configuration data from some source into a struct.
 func (f flatpack) Unmarshal(dest interface{}) error {
-	return f.unmarshal([]string{}, dest)
+	return f.unmarshal(Key{}, dest)
 }
 
 // Read configuration source into a struct or sub-struct.
-func (f flatpack) unmarshal(prefix []string, dest interface{}) error {
+func (f flatpack) unmarshal(prefix Key, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -26,18 +26,18 @@ func (f flatpack) unmarshal(prefix []string, dest interface{}) error {
 		}
 		v = v.Elem()
 	} else {
-		return fmt.Errorf("invalid type: need pointer to struct, got %s", v.Kind().String())
+		return fmt.Errorf("invalid type: expected pointer-to-struct (key=%s,type=%s)", prefix, v.Kind())
 	}
 
 	vt := v.Type()
 
 	if vt.Kind() != reflect.Struct {
-		return fmt.Errorf("invalid type for %v: expected struct, got %s", prefix, vt.Kind().String())
+		return fmt.Errorf("invalid type: expected struct (key=%s,type=%s)", prefix, vt.Kind())
 	}
 
-	// prepare field-name array that we can reuse across fields, changing
-	// only the last element
-	name := make([]string, len(prefix)+1)
+	// prepare a reusable key whose last element will change as we iterate
+	// through the fields in this struct
+	name := make(Key, len(prefix)+1)
 	copy(name, prefix)
 
 	for i := 0; i < vt.NumField(); i++ {
@@ -79,7 +79,7 @@ func (f flatpack) assign(dest reflect.Value, source string) (err error) {
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = fmt.Errorf("cannot parse \"%s\" as an integer: %s", numError.Num, numError.Err)
+				err = fmt.Errorf("invalid value: cannot parse string as integer (value=%s,error=%s)", numError.Num, numError.Err)
 			}
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
@@ -91,7 +91,7 @@ func (f flatpack) assign(dest reflect.Value, source string) (err error) {
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = fmt.Errorf("cannot parse \"%s\" as an integer: %s", numError.Num, numError.Err)
+				err = fmt.Errorf("invalid value: cannot parse string as integer: (value=%s,error=%s)", numError.Num, numError.Err)
 			}
 		}
 	case reflect.Float32, reflect.Float64:
@@ -102,7 +102,7 @@ func (f flatpack) assign(dest reflect.Value, source string) (err error) {
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = fmt.Errorf("cannot parse \"%s\" as a float: %s", numError.Num, numError.Err)
+				err = fmt.Errorf("invalid value: cannot parse string as float (value=%s,error=%s)", numError.Num, numError.Err)
 			}
 		}
 	case reflect.String:
@@ -119,7 +119,7 @@ func (f flatpack) assign(dest reflect.Value, source string) (err error) {
 
 // Set a single struct field by reading a string from the Getter, massaging it
 // to the correct Type for that field, and assigning to the given Value.
-func (f flatpack) read(name []string, value reflect.Value) error {
+func (f flatpack) read(name Key, value reflect.Value) error {
 	kind := value.Type().Kind()
 
 	var got string
@@ -158,7 +158,7 @@ func (f flatpack) read(name []string, value reflect.Value) error {
 		}
 		err = f.read(name, value.Elem())
 	default:
-		err = fmt.Errorf("invalid value for %s; unsupported type %s", name, value.Type())
+		err = fmt.Errorf("invalid type: unsupported data type (key=%s,type=%s)", name, value.Type())
 	}
 	return err
 }

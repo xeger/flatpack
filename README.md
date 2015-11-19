@@ -44,10 +44,10 @@ func main() {
 
 If Unmarshal returns no errors, your config is available and your app is ready to go!
 
-Why?
+Why should I use it?
 ----
 
-Unsure; it remains to be seen whether this is useful. The goal is to:
+Flatpack's goals are to:
 
 1. Encourage the use of plain old Go data structures to specify configuration and represent it in-memory.
 2. Decouple the actual reading of config data from validation, propagation across the app, data binding, and

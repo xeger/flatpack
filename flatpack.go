@@ -4,12 +4,12 @@ import "os"
 
 // Getter represents a read-only repository of key/value pairs where the keys
 // are ordered sequences of strings and the values are strings. It's analogous
-// to a map[[]string]string, but the data may be retrieved from a network or
-// filesystem source and the complex names may be treated as an indicator of
-// hierarchy or containment within the data source, e.g. URL hierarchy on an
+// to a map[Key]string, but the data may be retrieved from a network or
+// filesystem source and the structured key name may be treated as an indicator
+// of hierarchy or containment within the data source, e.g. URL hierarchy on an
 // HTTP k/v store, or directory hierarchy on a filesystem-based store.
 type Getter interface {
-	Get(name []string) (string, error)
+	Get(name Key) (string, error)
 }
 
 // Validater represents an object that knows how to validate itself. If the

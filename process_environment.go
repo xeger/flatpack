@@ -11,27 +11,27 @@ type processEnvironment struct {
 	lookup func(string) (string, bool)
 }
 
-func (pe processEnvironment) Get(name []string) (string, error) {
-	key := pe.keyFor(name)
+func (pe processEnvironment) Get(name Key) (string, error) {
+	key := pe.envKeyFor(name)
 	value, _ := pe.lookup(key)
 	return value, nil
 }
 
-// Transform a field name into an environment-variable key to be used with
+// Transform a key into an environment-variable key to be used with
 // os.Getenv or similar.
-func (pe processEnvironment) keyFor(name []string) string {
-	key := bytes.Buffer{}
+func (pe processEnvironment) envKeyFor(name Key) string {
+	envKey := bytes.Buffer{}
 	for i, piece := range name {
 		if i > 0 {
-			key.WriteRune('_')
+			envKey.WriteRune('_')
 		}
 		for j, char := range piece {
 			if unicode.IsUpper(char) && j > 0 {
-				key.WriteRune('_')
+				envKey.WriteRune('_')
 			}
-			key.WriteRune(unicode.ToUpper(char))
+			envKey.WriteRune(unicode.ToUpper(char))
 		}
 	}
 
-	return key.String()
+	return envKey.String()
 }

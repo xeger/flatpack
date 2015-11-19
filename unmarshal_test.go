@@ -87,24 +87,24 @@ var _ = Describe("Unmarshal()", func() {
 
 		It("complains about non-pointer parameters", func() {
 			got := person{}
-			Expect(Unmarshal(got)).To(MatchError("invalid type: need pointer to struct, got struct"))
+			Expect(Unmarshal(got)).To(MatchError("invalid type: expected pointer-to-struct (key=.,type=struct)"))
 		})
 
 		It("complains about non-struct parameters", func() {
 			wrong := "hello world"
-			Expect(Unmarshal(wrong)).To(MatchError("invalid type: need pointer to struct, got string"))
+			Expect(Unmarshal(wrong)).To(MatchError("invalid type: expected pointer-to-struct (key=.,type=string)"))
 			number := 4
 			wrong2 := &number
-			Expect(Unmarshal(wrong2)).To(MatchError("invalid type for []: expected struct, got int"))
+			Expect(Unmarshal(wrong2)).To(MatchError("invalid type: expected struct (key=.,type=int)"))
 		})
 
 		It("complains about type mismatches", func() {
 			got := intPerson{}
-			Expect(Unmarshal(&got)).To(MatchError("cannot parse \"carol@example.com\" as an integer: invalid syntax"))
+			Expect(Unmarshal(&got)).To(MatchError("invalid value: cannot parse string as integer (value=carol@example.com,error=invalid syntax)"))
 			got2 := floatPerson{}
-			Expect(Unmarshal(&got2)).To(MatchError("cannot parse \"carol@example.com\" as a float: invalid syntax"))
+			Expect(Unmarshal(&got2)).To(MatchError("invalid value: cannot parse string as float (value=carol@example.com,error=invalid syntax)"))
 			got3 := exoticPerson{}
-			Expect(Unmarshal(&got3)).To(MatchError("invalid value for [Email]; unsupported type map[int]bool"))
+			Expect(Unmarshal(&got3)).To(MatchError("invalid type: unsupported data type (key=Email,type=map[int]bool)"))
 		})
 	})
 })
