@@ -36,17 +36,9 @@ var DataSource Getter = &processEnvironment{os.LookupEnv}
 // that want to use the default data source (process environment) or
 // set a process-wide data source at startup.
 //
-// NOTE: flatpack currently lacks a non-singleton interface, but it would be
-// easy to add by simply exporting flatpack.new() and flatpack.unmarshaller.
+// NOTE: flatpack currently lacks a public non-singleton interface, but it
+// would be easy to add by simply exporting flatpack.new() and
+// flatpack.unmarshaller.
 func Unmarshal(dest interface{}) error {
-	err := new(DataSource).Unmarshal(dest)
-
-	if err == nil {
-		validater, ok := dest.(Validater)
-		if ok {
-			err = validater.Validate()
-		}
-	}
-
-	return err
+	return new(DataSource).Unmarshal(dest)
 }
