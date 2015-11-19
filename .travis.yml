@@ -1,0 +1,14 @@
+language: go
+go:
+  - 1.5
+sudo: false
+env:
+  # COVERALLS_TOKEN
+  secure: "JI5trirgrT8qsMQVFQgFH/Gis3UHIcs1Ms2WbIUoaV7wHwHk5/2m1guNqOWMNdMeIqjXrVTQdrxpLZmHt0SJPFATV7FTGuMmxKE1xSwETXrSEdAa1m+f8Ag/yI1olWR5fewfPDo5fBG4GqS9MGZCfbkCPcAnxiz9Y3eBTT/unmTCxYGGqjtcgWoWWf/MqNObAw9SzmDwbVw8omZA5lyiH/eEFKaxDmjqxZoXFKMs12FL3RmzeMcot901mw+aH2S3RieBlkqBkY4snhSdFzu3S/UtOxJR7959ADREm1gqI6lfITJq74gShmS7m50EJBSxgoON+M4ZqydcpjHvW+if6SEuOn89dBe3QaVE8pS00F9NqiEG/OXhuu8InYyVrBgYdmOZ4Ak+ndZIU4cGNYDfJn00i+jztYfsYn+uaylyomGTe9Aa1xvcAYKcmh4YY7q1DvsNnzSB+GuRuNlvjeilyV+8BCnEq7IcxE1V+fraDI4ntU6YXK7LyHyej4BCQ8Z8Ku0RtdqJtnCFE5CMluCDp9nyhxBueRSyJQFEQ1PNrFQc8O0rNRO6dyEUHBrxpITJYOvShTMPN2iortz7jrSdErYvS3m5+rfqfFX4h3FBEnSD7kHjqZxL95aC5YMcWS80hUYk82OmDtMeIlgftVO1oMrU2sM7ofmwS+HK+A1Ya/g="
+install:
+  - go get github.com/onsi/gomega
+  - go get github.com/onsi/ginkgo/ginkgo
+  - go get github.com/mattn/goveralls
+script:
+  - ginkgo -r -cover
+  - goveralls -coverprofile=flatpack.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN
