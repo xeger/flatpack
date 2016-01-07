@@ -6,7 +6,7 @@ for Go programs. It reads data from the process environment and "splats" it into
 your choice. You benefit from Go's type safety without writing boilerplate config-loading code;
 your users never need to touch a config file; you get to spend your time on features that _matter_.
 
-![Build Status](https://travis-ci.org/xeger/flatpack.svg) [![Coverage Status](https://coveralls.io/repos/xeger/flatpack/badge.svg?branch=ci&service=github)](https://coveralls.io/github/xeger/flatpack?branch=ci)
+![Build Status](https://travis-ci.org/xeger/flatpack.svg) [![Coverage Status](https://coveralls.io/repos/xeger/flatpack/badge.svg?branch=master&service=github)](https://coveralls.io/github/xeger/flatpack?branch=master)
 
 How do I use it?
 ----------------
