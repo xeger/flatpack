@@ -131,12 +131,12 @@ func (f implementation) read(name Key, value reflect.Value) error {
 		reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64,
 		reflect.String:
 		got, err = f.source.Get(name)
-		if err == nil {
+		if err == nil && got != "" {
 			err = f.assign(value, got)
 		}
 	case reflect.Array, reflect.Slice:
 		got, err = f.source.Get(name)
-		if err == nil {
+		if err == nil && got != "" {
 			var raw []interface{}
 			err = json.Unmarshal([]byte(got), &raw)
 			if err == nil {
