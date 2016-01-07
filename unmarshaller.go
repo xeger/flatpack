@@ -14,5 +14,5 @@ type unmarshaller interface {
 //
 // TODO: export this in order to provide a non-singleton interface to flatpack
 func new(source Getter) unmarshaller {
-	return &flatpack{source}
+	return &implementation{source}
 }

@@ -6,8 +6,8 @@ import (
 	"reflect"
 )
 
-var _ = Describe("flatpack", func() {
-	it := flatpack{stubEnvironment(map[string]string{})}
+var _ = Describe("implementation", func() {
+	it := implementation{stubEnvironment(map[string]string{})}
 
 	Describe(".assign()", func() {
 		It("panics over unsupported types", func() {

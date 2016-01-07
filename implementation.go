@@ -8,17 +8,17 @@ import (
 )
 
 // Unexported implementation class for unmarshaller.
-type flatpack struct {
+type implementation struct {
 	source Getter
 }
 
 // Unmarshal reads configuration data from some source into a struct.
-func (f flatpack) Unmarshal(dest interface{}) error {
+func (f implementation) Unmarshal(dest interface{}) error {
 	return f.unmarshal(Key{}, dest)
 }
 
 // Read configuration source into a struct or sub-struct.
-func (f flatpack) unmarshal(prefix Key, dest interface{}) error {
+func (f implementation) unmarshal(prefix Key, dest interface{}) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -61,7 +61,7 @@ func (f flatpack) unmarshal(prefix Key, dest interface{}) error {
 
 // Coerce a value to a suitable Type and then assign it to a Value (either a
 // struct field or an element of a slice).
-func (f flatpack) assign(dest reflect.Value, source string) (err error) {
+func (f implementation) assign(dest reflect.Value, source string) (err error) {
 	kind := dest.Type().Kind()
 
 	switch kind {
@@ -119,7 +119,7 @@ func (f flatpack) assign(dest reflect.Value, source string) (err error) {
 
 // Set a single struct field by reading a string from the Getter, massaging it
 // to the correct Type for that field, and assigning to the given Value.
-func (f flatpack) read(name Key, value reflect.Value) error {
+func (f implementation) read(name Key, value reflect.Value) error {
 	kind := value.Type().Kind()
 
 	var got string
@@ -160,5 +160,6 @@ func (f flatpack) read(name Key, value reflect.Value) error {
 	default:
 		err = fmt.Errorf("invalid type: unsupported data type (key=%s,type=%s)", name, value.Type())
 	}
+
 	return err
 }
