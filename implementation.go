@@ -111,7 +111,7 @@ func (f implementation) assign(dest reflect.Value, source string) (err error) {
 		}
 	default:
 		// should be unreachable due to validation in read()
-		panic("case should be unreachable; bug in flatpack.unmarshaller.read9)")
+		panic("case should be unreachable; bug in flatpack.unmarshaller.read()")
 	}
 
 	return
