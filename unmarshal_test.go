@@ -34,6 +34,17 @@ type exoticPerson struct {
 	Age   chan bool
 }
 
+type exoticTaggedPerson struct {
+	Email map[int]bool `flatpack:"-"`
+	Age   chan bool    `flatpack:"-"`
+	Mass  float32
+}
+type nestedExoticPerson struct {
+	Family struct {
+		Father map[string]bool
+	}
+}
+
 // For testing Validater callbacks
 type dysfunctionalPerson struct {
 	person
@@ -105,6 +116,14 @@ var _ = Describe("Unmarshal()", func() {
 			Expect(Unmarshal(&got2)).To(MatchError("invalid value: cannot parse string as float (value=carol@example.com,error=invalid syntax)"))
 			got3 := exoticPerson{}
 			Expect(Unmarshal(&got3)).To(MatchError("invalid type: unsupported data type (key=Email,type=map[int]bool)"))
+			got4 := nestedExoticPerson{}
+			Expect(Unmarshal(&got4)).To(MatchError("invalid type: unsupported data type (key=Family.Father,type=map[string]bool)"))
+		})
+
+		It("skips the fields marked with flatpack tags", func() {
+			got := exoticTaggedPerson{}
+			Expect(Unmarshal(&got)).To(BeNil())
+			Expect(got.Mass).To(Equal(float32(16.84)))
 		})
 	})
 })

@@ -43,6 +43,11 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) error {
 	for i := 0; i < vt.NumField(); i++ {
 		field := vt.Field(i)
 		value := v.Field(i)
+		tag := field.Tag.Get("flatpack")
+		// Skip processing the field.
+		if tag == "-" {
+			continue
+		}
 
 		name[len(name)-1] = field.Name
 		err := f.read(name, value)
@@ -149,7 +154,7 @@ func (f implementation) read(name Key, value reflect.Value) error {
 			}
 		}
 	case reflect.Struct:
-		f.unmarshal(name, value.Addr().Interface())
+		err = f.unmarshal(name, value.Addr().Interface())
 	case reflect.Ptr:
 		// Handle pointers by allocating if necessary, then recursively calling
 		// ourselves.
