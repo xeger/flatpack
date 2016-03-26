@@ -62,7 +62,7 @@ Flatpack uses the `reflect` package to recurse through your configuration struct
 As it goes, it maintains a list of field names that it used to arrive at its present
 location. This list of field names is transformed into an underscore-delimited string
 like so:
- * `Foo.Bar` becomes `FOO_BAR_BAZ`
+ * `Foo.Bar` becomes `FOO_BAR`
  * `Foo.Bar.BazQuux` becomes `FOO_BAR_BAZ_QUUX`
 
 (Yes, this means that `Foo.BarBaz` and `FooBar.Baz` will both be populated from the same
@@ -74,7 +74,7 @@ the data type of that field. Supported data types are booleans, numbers, strings
 and lists of any of those. If a coercion fails, flatpack returns an error and your
 app exits with a useful message about what's wrong in the config.
 
-As a _coup de grace_, flatpack calls `Validate()` on your configuration object
+As a _coup de grâce_, flatpack calls `Validate()` on your configuration object
 if it defines that method, giving you a chance to validate the finer points of
 your configuration or log a startup message with config details.
 
@@ -87,5 +87,5 @@ directly into the library.
 
 On the other hand, I like the idea of using the process environment to decouple
 the producer of config data from the consumer; it produces a naturally-portable
-app. I might find or create a shim that reads key/value stores and writes to
-the environment.
+app. Tools like [envconsul](https://github.com/hashicorp/envconsul) can deal
+with the k/v store on behalf of my app.
