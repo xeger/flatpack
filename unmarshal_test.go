@@ -36,7 +36,7 @@ type exoticPerson struct {
 
 // For testing Validater callbacks
 type dysfunctionalPerson struct {
-	person
+	Issues []string
 }
 
 func (dp *dysfunctionalPerson) Validate() error {

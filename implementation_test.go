@@ -14,6 +14,12 @@ type fixture struct {
 	}
 }
 
+// Test that we avoid a new panic introduced in go 1.5:
+//   reflect.Value.Interface: cannot return value obtained from unexported field or method
+type badEmbedding struct {
+	fixture
+}
+
 var _ = Describe("implementation", func() {
 	it := implementation{stubEnvironment(map[string]string{})}
 
@@ -49,6 +55,12 @@ var _ = Describe("implementation", func() {
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
+		})
+
+		It("handles reflection errors without panicking", func() {
+			s := badEmbedding{}
+			err := it.Unmarshal(&s)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

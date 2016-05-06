@@ -149,7 +149,12 @@ func (f implementation) read(name Key, value reflect.Value) error {
 			}
 		}
 	case reflect.Struct:
-		f.unmarshal(name, value.Addr().Interface())
+		addr := value.Addr()
+		if addr.CanInterface() {
+			f.unmarshal(name, addr.Interface())
+		} else {
+			err = fmt.Errorf("reflection error: cannot convert pointer to interface{}; unexported field or type?")
+		}
 	case reflect.Ptr:
 		// Handle pointers by allocating if necessary, then recursively calling
 		// ourselves.
