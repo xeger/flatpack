@@ -12,8 +12,8 @@ type Key []string
 // String returns this key formatted as if were a Go expression to access
 // fields of a struct, i.e. a list of dot-separated identifiers.
 func (k Key) String() string {
-	if len(k) == 0 {
-		return "."
+	if k == nil || len(k) == 0 {
+		return ""
 	}
 	return strings.Join(k, ".")
 }
@@ -21,8 +21,12 @@ func (k Key) String() string {
 // AsEnv returns this key formatted in a way that is suitable for insertion
 // in the process environment.
 func (k Key) AsEnv() string {
+	if k == nil || len(k) == 0 {
+		return ""
+	}
+
 	envKey := bytes.Buffer{}
-	lastUnder, lastUpper := false, false
+	lastUnder := false
 
 	for i, piece := range k {
 		if i > 0 {
@@ -32,23 +36,25 @@ func (k Key) AsEnv() string {
 				lastUnder = true
 			}
 		}
+		runUpper := 0
 		for j, char := range piece {
-			if unicode.IsUpper(char) && j > 0 {
-				if !lastUnder && !lastUpper {
+			if unicode.IsUpper(char) {
+				if j > 0 && !lastUnder && runUpper == 0 {
 					envKey.WriteRune('_')
 				}
 				envKey.WriteRune(unicode.ToUpper(char))
-				lastUpper = true
+				runUpper++
 				lastUnder = false
 			} else if !unicode.IsLetter(char) && !unicode.IsNumber(char) {
 				if !lastUnder {
 					envKey.WriteRune('_')
 					lastUnder = true
+					runUpper = 0
 				}
 			} else {
 				envKey.WriteRune(unicode.ToUpper(char))
-				lastUpper = false
 				lastUnder = false
+				runUpper = 0
 			}
 		}
 	}

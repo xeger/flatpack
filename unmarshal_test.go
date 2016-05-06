@@ -87,15 +87,15 @@ var _ = Describe("Unmarshal()", func() {
 
 		It("complains about non-pointer parameters", func() {
 			got := person{}
-			Expect(Unmarshal(got)).To(MatchError("invalid type: expected pointer-to-struct (key=.,type=struct)"))
+			Expect(Unmarshal(got)).To(MatchError("invalid type: expected pointer-to-struct (key=,type=struct)"))
 		})
 
 		It("complains about non-struct parameters", func() {
 			wrong := "hello world"
-			Expect(Unmarshal(wrong)).To(MatchError("invalid type: expected pointer-to-struct (key=.,type=string)"))
+			Expect(Unmarshal(wrong)).To(MatchError("invalid type: expected pointer-to-struct (key=,type=string)"))
 			number := 4
 			wrong2 := &number
-			Expect(Unmarshal(wrong2)).To(MatchError("invalid type: expected struct (key=.,type=int)"))
+			Expect(Unmarshal(wrong2)).To(MatchError("invalid type: expected struct (key=,type=int)"))
 		})
 
 		It("complains about type mismatches", func() {
