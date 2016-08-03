@@ -14,25 +14,28 @@ type implementation struct {
 
 // Unmarshal reads configuration data from some source into a struct.
 func (f implementation) Unmarshal(dest interface{}) error {
-	return f.unmarshal(Key{}, dest)
+	_, err := f.unmarshal(Key{}, dest)
+	return err
 }
 
-// Read configuration source into a struct or sub-struct.
-func (f implementation) unmarshal(prefix Key, dest interface{}) error {
+// Read configuration source into a struct or sub-struct. Return the number of
+// fields that were set.
+func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
+	count := 0
 	v := reflect.ValueOf(dest)
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
-			return fmt.Errorf("invalid value: need non-nil pointer")
+			return 0, fmt.Errorf("invalid value: need non-nil pointer")
 		}
 		v = v.Elem()
 	} else {
-		return fmt.Errorf("invalid type: expected pointer-to-struct (key=%s,type=%s)", prefix, v.Kind())
+		return 0, fmt.Errorf("invalid type: expected pointer-to-struct (key=%s,type=%s)", prefix, v.Kind())
 	}
 
 	vt := v.Type()
 
 	if vt.Kind() != reflect.Struct {
-		return fmt.Errorf("invalid type: expected struct (key=%s,type=%s)", prefix, vt.Kind())
+		return 0, fmt.Errorf("invalid type: expected struct (key=%s,type=%s)", prefix, vt.Kind())
 	}
 
 	// prepare a reusable key whose last element will change as we iterate
@@ -45,18 +48,19 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) error {
 		value := v.Field(i)
 
 		name[len(name)-1] = field.Name
-		err := f.read(name, value)
+		read, err := f.read(name, value)
 		if err != nil {
-			return err
+			return 0, err
 		}
+		count += read
 	}
 
 	validater, ok := dest.(Validater)
 	if ok {
-		return validater.Validate()
+		return count, validater.Validate()
 	}
 
-	return nil
+	return count, nil
 }
 
 // Coerce a value to a suitable Type and then assign it to a Value (either a
@@ -119,7 +123,14 @@ func (f implementation) assign(dest reflect.Value, source string) (err error) {
 
 // Set a single struct field by reading a string from the Getter, massaging it
 // to the correct Type for that field, and assigning to the given Value.
-func (f implementation) read(name Key, value reflect.Value) error {
+//
+// If the field is itself a struct, recurse by calling unmarshal on the sub-
+// struct. If the field is a pointer to anything, allocate it and then recurse
+// to set the pointed-to value.
+//
+// Return the number of fields that were set.
+func (f implementation) read(name Key, value reflect.Value) (int, error) {
+	count := 0
 	kind := value.Type().Kind()
 
 	var got string
@@ -133,6 +144,7 @@ func (f implementation) read(name Key, value reflect.Value) error {
 		got, err = f.source.Get(name)
 		if err == nil && got != "" {
 			err = f.assign(value, got)
+			count++
 		}
 	case reflect.Array, reflect.Slice:
 		got, err = f.source.Get(name)
@@ -144,6 +156,7 @@ func (f implementation) read(name Key, value reflect.Value) error {
 				for i, elem := range raw {
 					if err == nil {
 						err = f.assign(value.Index(i), fmt.Sprintf("%v", elem))
+						count++
 					}
 				}
 			}
@@ -151,7 +164,7 @@ func (f implementation) read(name Key, value reflect.Value) error {
 	case reflect.Struct:
 		addr := value.Addr()
 		if addr.CanInterface() {
-			f.unmarshal(name, addr.Interface())
+			count, err = f.unmarshal(name, addr.Interface())
 		} else {
 			err = fmt.Errorf("reflection error: cannot convert pointer to interface{}; unexported field or type?")
 		}
@@ -161,10 +174,15 @@ func (f implementation) read(name Key, value reflect.Value) error {
 		if value.IsNil() {
 			value.Set(reflect.New(value.Type().Elem()))
 		}
-		err = f.read(name, value.Elem())
+		count, err = f.read(name, value.Elem())
+		// Set pointer (back) to nil if no values were read into it; prevent
+		// fooling client into thinking he got nested values when he did not.
+		if count == 0 {
+			value.Set(reflect.Zero(value.Type()))
+		}
 	default:
 		err = fmt.Errorf("invalid type: unsupported data type (key=%s,type=%s)", name, value.Type())
 	}
 
-	return err
+	return count, err
 }

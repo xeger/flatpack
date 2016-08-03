@@ -1,9 +1,10 @@
 package flatpack
 
 import (
+	"reflect"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"reflect"
 )
 
 type fixture struct {
@@ -14,6 +15,15 @@ type fixture struct {
 	}
 }
 
+type fixture2 struct {
+	Foo struct {
+		Baz string
+	}
+	Bar *struct {
+		Baz string
+	}
+}
+
 // Test that we avoid a new panic introduced in go 1.5:
 //   reflect.Value.Interface: cannot return value obtained from unexported field or method
 type badEmbedding struct {
@@ -21,10 +31,9 @@ type badEmbedding struct {
 }
 
 var _ = Describe("implementation", func() {
-	it := implementation{stubEnvironment(map[string]string{})}
-
 	Describe(".assign()", func() {
 		It("panics over unsupported types", func() {
+			it := implementation{stubEnvironment(map[string]string{})}
 			unsupported := reflect.ValueOf(make(chan int))
 			Expect(func() {
 				it.assign(unsupported, "")
@@ -58,9 +67,35 @@ var _ = Describe("implementation", func() {
 		})
 
 		It("handles reflection errors without panicking", func() {
+			it := implementation{stubEnvironment(map[string]string{})}
 			s := badEmbedding{}
 			err := it.Unmarshal(&s)
 			Expect(err).To(HaveOccurred())
+		})
+
+		It("handles nested structs", func() {
+			fx := fixture2{}
+			env := map[string]string{
+				"FOO_BAZ": "foo baz",
+				"BAR_BAZ": "bar baz",
+			}
+			it := implementation{stubEnvironment(env)}
+			err := it.Unmarshal(&fx)
+			Expect(err).To(Succeed())
+			Expect(fx.Foo.Baz).To(Equal("foo baz"))
+			Expect(fx.Bar).NotTo(BeNil())
+			Expect(fx.Bar.Baz).To(Equal("bar baz"))
+		})
+
+		It("allocates nested pointers only when needed", func() {
+			fx := fixture2{}
+			env := map[string]string{
+				"FOO_BAZ": "foo baz",
+			}
+			it := implementation{stubEnvironment(env)}
+			err := it.Unmarshal(&fx)
+			Expect(err).To(Succeed())
+			Expect(fx.Bar).To(BeNil())
 		})
 	})
 })
