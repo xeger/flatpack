@@ -22,6 +22,12 @@ var _ = Describe("Key", func() {
 		Expect(flatpack.Key([]string{}).String()).To(Equal(""))
 	})
 
+	Describe(".String()", func() {
+		It("uses dot notation", func() {
+			Expect(key("Dot.Separated").String()).To(Equal("Dot.Separated"))
+		})
+	})
+
 	Describe(".AsEnv()", func() {
 		It("separates pieces with underscore", func() {
 			Expect(key("Dot.Separated").AsEnv()).To(Equal("DOT_SEPARATED"))

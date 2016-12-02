@@ -7,15 +7,16 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type fixture struct {
+type simple struct {
 	Foo string
 	Bar []string
 	Baz struct {
-		Quux string
+		Quux  string
+		Corge int
 	}
 }
 
-type fixture2 struct {
+type pointery struct {
 	Foo struct {
 		Baz string
 	}
@@ -27,7 +28,7 @@ type fixture2 struct {
 // Test that we avoid a new panic introduced in go 1.5:
 //   reflect.Value.Interface: cannot return value obtained from unexported field or method
 type badEmbedding struct {
-	fixture
+	simple
 }
 
 var _ = Describe("implementation", func() {
@@ -36,14 +37,14 @@ var _ = Describe("implementation", func() {
 			it := implementation{stubEnvironment(map[string]string{})}
 			unsupported := reflect.ValueOf(make(chan int))
 			Expect(func() {
-				it.assign(unsupported, "")
+				it.assign(unsupported, "", Key{})
 			}).To(Panic())
 		})
 	})
 
 	Describe(".Unmarshal()", func() {
 		It("propagates errors", func() {
-			fx := fixture{}
+			fx := simple{}
 			env := map[string]string{
 				"FOO":      "foo",
 				"BAR":      "[\"not-a-valid-json-array",
@@ -56,7 +57,7 @@ var _ = Describe("implementation", func() {
 		})
 
 		It("handles missing keys", func() {
-			fx := fixture{}
+			fx := simple{}
 			env := map[string]string{
 				"FOO":      "foo",
 				"BAZ_QUUX": "baz quux",
@@ -66,15 +67,8 @@ var _ = Describe("implementation", func() {
 			Expect(err).To(Succeed())
 		})
 
-		It("handles reflection errors without panicking", func() {
-			it := implementation{stubEnvironment(map[string]string{})}
-			s := badEmbedding{}
-			err := it.Unmarshal(&s)
-			Expect(err).To(HaveOccurred())
-		})
-
 		It("handles nested structs", func() {
-			fx := fixture2{}
+			fx := pointery{}
 			env := map[string]string{
 				"FOO_BAZ": "foo baz",
 				"BAR_BAZ": "bar baz",
@@ -87,8 +81,8 @@ var _ = Describe("implementation", func() {
 			Expect(fx.Bar.Baz).To(Equal("bar baz"))
 		})
 
-		It("allocates nested pointers only when needed", func() {
-			fx := fixture2{}
+		It("allocates pointers when needed", func() {
+			fx := pointery{}
 			env := map[string]string{
 				"FOO_BAZ": "foo baz",
 			}
@@ -96,6 +90,34 @@ var _ = Describe("implementation", func() {
 			err := it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
 			Expect(fx.Bar).To(BeNil())
+
+			env = map[string]string{
+				"FOO_BAZ": "foo baz",
+				"BAR_BAZ": "bar baz",
+			}
+			it = implementation{stubEnvironment(env)}
+			err = it.Unmarshal(&fx)
+			Expect(err).To(Succeed())
+			Expect(fx.Bar).NotTo(BeNil())
+		})
+	})
+
+	Context("error reporting", func() {
+		It("complains about reflection without panicking", func() {
+			it := implementation{stubEnvironment(map[string]string{})}
+			s := badEmbedding{}
+			err := it.Unmarshal(&s)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("complains about malformed integers", func() {
+			env := map[string]string{
+				"BAZ_CORGE": "not-a-number",
+			}
+			it := implementation{stubEnvironment(env)}
+			s := simple{}
+			err := it.Unmarshal(&s)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

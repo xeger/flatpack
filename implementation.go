@@ -25,17 +25,17 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
 	v := reflect.ValueOf(dest)
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
-			return 0, fmt.Errorf("invalid value: need non-nil pointer")
+			return 0, &BadValue{Key: prefix, expected: "non-nil pointer to struct"}
 		}
 		v = v.Elem()
 	} else {
-		return 0, fmt.Errorf("invalid type: expected pointer-to-struct (key=%s,type=%s)", prefix, v.Kind())
+		return 0, &BadType{Key: prefix, Kind: v.Kind(), reason: "expected pointer to struct"}
 	}
 
 	vt := v.Type()
 
 	if vt.Kind() != reflect.Struct {
-		return 0, fmt.Errorf("invalid type: expected struct (key=%s,type=%s)", prefix, vt.Kind())
+		return 0, &BadType{Key: prefix, Kind: vt.Kind(), reason: "expected struct"}
 	}
 
 	// prepare a reusable key whose last element will change as we iterate
@@ -63,9 +63,9 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
 	return count, nil
 }
 
-// Coerce a value to a suitable Type and then assign it to a Value (either a
+// Coerce a string to a suitable Type and then assign it to a Value (either a
 // struct field or an element of a slice).
-func (f implementation) assign(dest reflect.Value, source string) (err error) {
+func (f implementation) assign(dest reflect.Value, source string, name Key) (err error) {
 	kind := dest.Type().Kind()
 
 	switch kind {
@@ -83,7 +83,7 @@ func (f implementation) assign(dest reflect.Value, source string) (err error) {
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = fmt.Errorf("invalid value: cannot parse string as integer (value=%s,error=%s)", numError.Num, numError.Err)
+				err = &BadValue{Key: name, Cause: numError}
 			}
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
@@ -95,7 +95,7 @@ func (f implementation) assign(dest reflect.Value, source string) (err error) {
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = fmt.Errorf("invalid value: cannot parse string as integer: (value=%s,error=%s)", numError.Num, numError.Err)
+				err = &BadValue{Key: name, Cause: numError}
 			}
 		}
 	case reflect.Float32, reflect.Float64:
@@ -106,7 +106,7 @@ func (f implementation) assign(dest reflect.Value, source string) (err error) {
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = fmt.Errorf("invalid value: cannot parse string as float (value=%s,error=%s)", numError.Num, numError.Err)
+				err = &BadValue{Key: name, Cause: numError}
 			}
 		}
 	case reflect.String:
@@ -124,9 +124,9 @@ func (f implementation) assign(dest reflect.Value, source string) (err error) {
 // Set a single struct field by reading a string from the Getter, massaging it
 // to the correct Type for that field, and assigning to the given Value.
 //
-// If the field is itself a struct, recurse by calling unmarshal on the sub-
-// struct. If the field is a pointer to anything, allocate it and then recurse
-// to set the pointed-to value.
+// If the field is itself a struct, recursively unmarshal into the sub-
+// struct. If the field is a pointer to anything, allocate it and then
+// recursively read into the pointed-to value.
 //
 // Return the number of fields that were set.
 func (f implementation) read(name Key, value reflect.Value) (int, error) {
@@ -143,7 +143,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 		reflect.String:
 		got, err = f.source.Get(name)
 		if err == nil && got != "" {
-			err = f.assign(value, got)
+			err = f.assign(value, got, name)
 			count++
 		}
 	case reflect.Array, reflect.Slice:
@@ -155,7 +155,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 				value.Set(reflect.MakeSlice(value.Type(), len(raw), len(raw)))
 				for i, elem := range raw {
 					if err == nil {
-						err = f.assign(value.Index(i), fmt.Sprintf("%v", elem))
+						err = f.assign(value.Index(i), fmt.Sprintf("%v", elem), name)
 						count++
 					}
 				}
@@ -166,7 +166,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 		if addr.CanInterface() {
 			count, err = f.unmarshal(name, addr.Interface())
 		} else {
-			err = fmt.Errorf("reflection error: cannot convert pointer to interface{}; unexported field or type?")
+			err = &NoReflection{Key: name}
 		}
 	case reflect.Ptr:
 		// Handle pointers by allocating if necessary, then recursively calling
@@ -181,7 +181,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 			value.Set(reflect.Zero(value.Type()))
 		}
 	default:
-		err = fmt.Errorf("invalid type: unsupported data type (key=%s,type=%s)", name, value.Type())
+		err = &BadType{Key: name, Kind: value.Kind(), reason: "unsupported data type"}
 	}
 
 	return count, err
