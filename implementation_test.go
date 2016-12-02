@@ -11,17 +11,17 @@ type simple struct {
 	Foo string
 	Bar []string
 	Baz struct {
-		Quux  string
-		Corge int
+		Foo string
+		Bar int
 	}
 }
 
 type pointery struct {
 	Foo struct {
-		Baz string
+		Foo string
 	}
 	Bar *struct {
-		Baz string
+		Foo string
 	}
 }
 
@@ -43,24 +43,11 @@ var _ = Describe("implementation", func() {
 	})
 
 	Describe(".Unmarshal()", func() {
-		It("propagates errors", func() {
-			fx := simple{}
-			env := map[string]string{
-				"FOO":      "foo",
-				"BAR":      "[\"not-a-valid-json-array",
-				"BAZ_QUUX": "baz quux",
-			}
-			it := implementation{stubEnvironment(env)}
-			err := it.Unmarshal(&fx)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(MatchRegexp("unexpected end of JSON input"))
-		})
-
 		It("handles missing keys", func() {
 			fx := simple{}
 			env := map[string]string{
-				"FOO":      "foo",
-				"BAZ_QUUX": "baz quux",
+				"FOO":     "foo",
+				"BAZ_FOO": "baz foo",
 			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
@@ -70,21 +57,21 @@ var _ = Describe("implementation", func() {
 		It("handles nested structs", func() {
 			fx := pointery{}
 			env := map[string]string{
-				"FOO_BAZ": "foo baz",
-				"BAR_BAZ": "bar baz",
+				"FOO_FOO": "foo foo",
+				"BAR_FOO": "bar foo",
 			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
-			Expect(fx.Foo.Baz).To(Equal("foo baz"))
+			Expect(fx.Foo.Foo).To(Equal("foo foo"))
 			Expect(fx.Bar).NotTo(BeNil())
-			Expect(fx.Bar.Baz).To(Equal("bar baz"))
+			Expect(fx.Bar.Foo).To(Equal("bar foo"))
 		})
 
 		It("allocates pointers when needed", func() {
 			fx := pointery{}
 			env := map[string]string{
-				"FOO_BAZ": "foo baz",
+				"FOO_FOO": "foo foo",
 			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
@@ -92,32 +79,47 @@ var _ = Describe("implementation", func() {
 			Expect(fx.Bar).To(BeNil())
 
 			env = map[string]string{
-				"FOO_BAZ": "foo baz",
-				"BAR_BAZ": "bar baz",
+				"FOO_FOO": "foo foo",
+				"BAR_FOO": "bar foo",
 			}
 			it = implementation{stubEnvironment(env)}
 			err = it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
 			Expect(fx.Bar).NotTo(BeNil())
 		})
-	})
 
-	Context("error reporting", func() {
-		It("complains about reflection without panicking", func() {
-			it := implementation{stubEnvironment(map[string]string{})}
-			s := badEmbedding{}
-			err := it.Unmarshal(&s)
-			Expect(err).To(HaveOccurred())
-		})
+		Context("error reporting", func() {
+			It("complains about malformed JSON", func() {
+				fx := simple{}
+				env := map[string]string{
+					"FOO":     "foo",
+					"BAR":     `["not-a-valid-json-array`,
+					"BAZ_FOO": "baz foo",
+				}
+				it := implementation{stubEnvironment(env)}
+				err := it.Unmarshal(&fx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("unexpected end of JSON input"))
+			})
 
-		It("complains about malformed integers", func() {
-			env := map[string]string{
-				"BAZ_CORGE": "not-a-number",
-			}
-			it := implementation{stubEnvironment(env)}
-			s := simple{}
-			err := it.Unmarshal(&s)
-			Expect(err).To(HaveOccurred())
+			It("complains about reflection without panicking", func() {
+				it := implementation{stubEnvironment(map[string]string{})}
+				s := badEmbedding{}
+				err := it.Unmarshal(&s)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("reflection error"))
+			})
+
+			It("complains about malformed integers", func() {
+				env := map[string]string{
+					"BAZ_BAR": "not-a-number",
+				}
+				it := implementation{stubEnvironment(env)}
+				s := simple{}
+				err := it.Unmarshal(&s)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("malformed value"))
+			})
 		})
 	})
 })
