@@ -13,7 +13,9 @@ type simple struct {
 	Baz struct {
 		Foo string
 		Bar int
+		Baz float64
 	}
+	Quux []int
 }
 
 type pointery struct {
@@ -23,6 +25,7 @@ type pointery struct {
 	Bar *struct {
 		Foo string
 	}
+	Baz []*int
 }
 
 // Test that we avoid a new panic introduced in go 1.5:
@@ -43,29 +46,34 @@ var _ = Describe("implementation", func() {
 	})
 
 	Describe(".Unmarshal()", func() {
-		It("handles missing keys", func() {
+		It("handles strings and numbers", func() {
 			fx := simple{}
 			env := map[string]string{
 				"FOO":     "foo",
 				"BAZ_FOO": "baz foo",
+				"BAZ_BAR": "42",
+				"BAZ_BAZ": "3.14159",
 			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
+			Expect(fx.Foo).To(Equal("foo"))
+			Expect(fx.Baz.Foo).To(Equal("baz foo"))
+			Expect(fx.Baz.Bar).To(Equal(42))
+			Expect(fx.Baz.Baz).To(Equal(3.14159))
 		})
 
-		It("handles nested structs", func() {
-			fx := pointery{}
+		It("handles slices", func() {
+			fx := simple{}
 			env := map[string]string{
-				"FOO_FOO": "foo foo",
-				"BAR_FOO": "bar foo",
+				"BAR":  `["foo", "bar"]`,
+				"QUUX": `[1,2,3]`,
 			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
-			Expect(fx.Foo.Foo).To(Equal("foo foo"))
-			Expect(fx.Bar).NotTo(BeNil())
-			Expect(fx.Bar.Foo).To(Equal("bar foo"))
+			Expect(fx.Bar).To(Equal([]string{"foo", "bar"}))
+			Expect(fx.Quux).To(Equal([]int{1, 2, 3}))
 		})
 
 		It("allocates pointers when needed", func() {
@@ -81,11 +89,14 @@ var _ = Describe("implementation", func() {
 			env = map[string]string{
 				"FOO_FOO": "foo foo",
 				"BAR_FOO": "bar foo",
+				"BAZ":     `[1,2,3]`,
 			}
 			it = implementation{stubEnvironment(env)}
 			err = it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
 			Expect(fx.Bar).NotTo(BeNil())
+			one, two, three := 1, 2, 3
+			Expect(fx.Baz).To(Equal([]*int{&one, &two, &three}))
 		})
 
 		Context("error reporting", func() {

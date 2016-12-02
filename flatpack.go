@@ -38,7 +38,7 @@ var DataSource Getter = &processEnvironment{os.LookupEnv}
 //
 // NOTE: flatpack currently lacks a public non-singleton interface, but it
 // would be easy to add by simply exporting flatpack.new() and
-// flatpack.unmarshaller.
+// declaring an Unmarshaller interface.
 func Unmarshal(dest interface{}) error {
 	return new(DataSource).Unmarshal(dest)
 }

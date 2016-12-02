@@ -115,7 +115,7 @@ func (f implementation) assign(dest reflect.Value, source string, name Key) (err
 		}
 	default:
 		// should be unreachable due to validation in read()
-		panic("case should be unreachable; bug in flatpack.unmarshaller.read()")
+		panic(fmt.Errorf("flatpack: unreachable code in assign(); bug in read()? (kind=%s)", kind))
 	}
 
 	return
@@ -131,7 +131,8 @@ func (f implementation) assign(dest reflect.Value, source string, name Key) (err
 // Return the number of fields that were set.
 func (f implementation) read(name Key, value reflect.Value) (int, error) {
 	count := 0
-	kind := value.Type().Kind()
+	vt := value.Type()
+	kind := vt.Kind()
 
 	var got string
 	var err error
@@ -146,16 +147,22 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 			err = f.assign(value, got, name)
 			count++
 		}
-	case reflect.Array, reflect.Slice:
+	case reflect.Slice:
 		got, err = f.source.Get(name)
 		if err == nil && got != "" {
 			var raw []interface{}
 			err = json.Unmarshal([]byte(got), &raw)
 			if err == nil {
-				value.Set(reflect.MakeSlice(value.Type(), len(raw), len(raw)))
+				vte := value.Type().Elem()
+				value.Set(reflect.MakeSlice(vt, len(raw), len(raw)))
 				for i, elem := range raw {
 					if err == nil {
-						err = f.assign(value.Index(i), fmt.Sprintf("%v", elem), name)
+						vi := value.Index(i)
+						if vte.Kind() == reflect.Ptr {
+							vi.Set(reflect.New(vte.Elem()))
+							vi = vi.Elem()
+						}
+						err = f.assign(vi, fmt.Sprintf("%v", elem), name)
 						count++
 					}
 				}
