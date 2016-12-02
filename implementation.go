@@ -25,17 +25,17 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
 	v := reflect.ValueOf(dest)
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
-			return 0, &BadValue{Key: prefix, expected: "non-nil pointer to struct"}
+			return 0, &BadValue{Name: prefix, expected: "non-nil pointer to struct"}
 		}
 		v = v.Elem()
 	} else {
-		return 0, &BadType{Key: prefix, Kind: v.Kind(), reason: "expected pointer to struct"}
+		return 0, &BadType{Name: prefix, Kind: v.Kind(), reason: "expected pointer to struct"}
 	}
 
 	vt := v.Type()
 
 	if vt.Kind() != reflect.Struct {
-		return 0, &BadType{Key: prefix, Kind: vt.Kind(), reason: "expected struct"}
+		return 0, &BadType{Name: prefix, Kind: vt.Kind(), reason: "expected struct"}
 	}
 
 	// prepare a reusable key whose last element will change as we iterate
@@ -83,7 +83,7 @@ func (f implementation) assign(dest reflect.Value, source string, name Key) (err
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = &BadValue{Key: name, Cause: numError}
+				err = &BadValue{Name: name, Cause: numError}
 			}
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
@@ -95,7 +95,7 @@ func (f implementation) assign(dest reflect.Value, source string, name Key) (err
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = &BadValue{Key: name, Cause: numError}
+				err = &BadValue{Name: name, Cause: numError}
 			}
 		}
 	case reflect.Float32, reflect.Float64:
@@ -106,7 +106,7 @@ func (f implementation) assign(dest reflect.Value, source string, name Key) (err
 		} else {
 			numError, ok := err.(*strconv.NumError)
 			if ok {
-				err = &BadValue{Key: name, Cause: numError}
+				err = &BadValue{Name: name, Cause: numError}
 			}
 		}
 	case reflect.String:
@@ -173,7 +173,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 		if addr.CanInterface() {
 			count, err = f.unmarshal(name, addr.Interface())
 		} else {
-			err = &NoReflection{Key: name}
+			err = &NoReflection{Name: name}
 		}
 	case reflect.Ptr:
 		// Handle pointers by allocating if necessary, then recursively calling
@@ -188,7 +188,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 			value.Set(reflect.Zero(value.Type()))
 		}
 	default:
-		err = &BadType{Key: name, Kind: value.Kind(), reason: "unsupported data type"}
+		err = &BadType{Name: name, Kind: value.Kind(), reason: "unsupported data type"}
 	}
 
 	return count, err

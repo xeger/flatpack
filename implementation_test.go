@@ -34,6 +34,10 @@ type badEmbedding struct {
 	simple
 }
 
+type badType struct {
+	Foo map[string]bool
+}
+
 var _ = Describe("implementation", func() {
 	Describe(".assign()", func() {
 		It("panics over unsupported types", func() {
@@ -130,6 +134,15 @@ var _ = Describe("implementation", func() {
 				err := it.Unmarshal(&s)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(MatchRegexp("malformed value"))
+			})
+
+			It("complains about unsupported types", func() {
+				env := map[string]string{}
+				it := implementation{stubEnvironment(env)}
+				s := badType{}
+				err := it.Unmarshal(&s)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("invalid type"))
 			})
 		})
 	})
