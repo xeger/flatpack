@@ -48,7 +48,7 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
 		value := v.Field(i)
 
 		name[len(name)-1] = field.Name
-		read, err := f.read(name, value)
+		read, err := f.read(name, &field, value)
 		if err != nil {
 			return 0, err
 		}
@@ -61,6 +61,11 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (f implementation) canIgnore(field *reflect.StructField) bool {
+	tag := field.Tag.Get("flatpack")
+	return tag == "ignore"
 }
 
 // Coerce a string to a suitable Type and then assign it to a Value (either a
@@ -129,7 +134,7 @@ func (f implementation) assign(dest reflect.Value, source string, name Key) (err
 // recursively read into the pointed-to value.
 //
 // Return the number of fields that were set.
-func (f implementation) read(name Key, value reflect.Value) (int, error) {
+func (f implementation) read(name Key, field *reflect.StructField, value reflect.Value) (int, error) {
 	count := 0
 	vt := value.Type()
 	kind := vt.Kind()
@@ -172,7 +177,7 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 		addr := value.Addr()
 		if addr.CanInterface() {
 			count, err = f.unmarshal(name, addr.Interface())
-		} else {
+		} else if !f.canIgnore(field) {
 			err = &NoReflection{Name: name}
 		}
 	case reflect.Ptr:
@@ -181,14 +186,16 @@ func (f implementation) read(name Key, value reflect.Value) (int, error) {
 		if value.IsNil() {
 			value.Set(reflect.New(value.Type().Elem()))
 		}
-		count, err = f.read(name, value.Elem())
+		count, err = f.read(name, field, value.Elem())
 		// Set pointer (back) to nil if no values were read into it; prevent
 		// fooling client into thinking he got nested values when he did not.
 		if count == 0 {
 			value.Set(reflect.Zero(value.Type()))
 		}
 	default:
-		err = &BadType{Name: name, Kind: value.Kind(), reason: "unsupported data type"}
+		if !f.canIgnore(field) {
+			err = &BadType{Name: name, Kind: value.Kind(), reason: "unsupported data type"}
+		}
 	}
 
 	return count, err

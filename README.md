@@ -20,7 +20,8 @@ export WIDGET_FACTORY=jumbo
 ```
 
 Next, define your configuration as a plain old Go struct, potentially with nested structs to represent hierarchy.
-Ask flatpack to unmarshal the environment into your data structure.
+Ask flatpack to unmarshal the environment into your data structure. If you want flatpack to ignore any of the
+fields, mark them with a `flatpack:"ignore"` field tag.
 
 ```go
 import (
@@ -31,6 +32,9 @@ type Config struct {
     Database struct {
         Host string
         Port int
+        // Bad idea to mix config with runtime state!
+        // We're doing it anyway to showcase the ignore tag.
+        Conn sql.Connection `flatpack:"ignore"`
     }
 
     WidgetFactory string
@@ -66,12 +70,11 @@ like so:
  * `Foo.Bar.BazQuux` becomes `FOO_BAR_BAZ_QUUX`
 
 (Yes, this means that `Foo.BarBaz` and `FooBar.Baz` will both be populated from the same
-environment variable; don't do that! In the future, flatpack will count this as an
-error and refuse to load your struct.)
+environment variable; don't do that!)
 
 If the environment variable is defined, flatpack parses its value and coerces it to
 the data type of that field. Supported data types are booleans, numbers, strings,
-and lists of any of those. If a coercion fails, flatpack returns an error and your
+and slices of any of those. If a coercion fails, flatpack returns an error and your
 app exits with a useful message about what's wrong in the config.
 
 As a _coup de grâce_, flatpack calls `Validate()` on your configuration object

@@ -28,6 +28,14 @@ type pointery struct {
 	Baz []*int
 }
 
+type ignored struct {
+	Foo string
+	Bar map[string]int `flatpack:"ignore"`
+	baz struct {
+		foo int
+	} `flatpack:"ignore"`
+}
+
 // Test that we avoid a new panic introduced in go 1.5:
 //   reflect.Value.Interface: cannot return value obtained from unexported field or method
 type badEmbedding struct {
@@ -101,6 +109,15 @@ var _ = Describe("implementation", func() {
 			Expect(fx.Bar).NotTo(BeNil())
 			one, two, three := 1, 2, 3
 			Expect(fx.Baz).To(Equal([]*int{&one, &two, &three}))
+		})
+
+		It("ignores fields when requested to", func() {
+			fx := ignored{}
+			env := map[string]string{"FOO": "foo"}
+			it := implementation{stubEnvironment(env)}
+			err := it.Unmarshal(&fx)
+			Expect(err).To(Succeed())
+			Expect(fx.Foo).To(Equal("foo"))
 		})
 
 		Context("error reporting", func() {
