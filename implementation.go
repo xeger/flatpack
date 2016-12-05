@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Unexported implementation class for unmarshaller.
@@ -46,6 +48,15 @@ func (f implementation) unmarshal(prefix Key, dest interface{}) (int, error) {
 	for i := 0; i < vt.NumField(); i++ {
 		field := vt.Field(i)
 		value := v.Field(i)
+
+		letter, _ := utf8.DecodeRuneInString(field.Name)
+		if !unicode.IsUpper(letter) {
+			if f.canIgnore(&field) {
+				continue
+			} else {
+				return 0, &NoReflection{Name: name}
+			}
+		}
 
 		name[len(name)-1] = field.Name
 		read, err := f.read(name, &field, value)
@@ -177,9 +188,9 @@ func (f implementation) read(name Key, field *reflect.StructField, value reflect
 		addr := value.Addr()
 		if addr.CanInterface() {
 			count, err = f.unmarshal(name, addr.Interface())
-		} else if !f.canIgnore(field) {
-			err = &NoReflection{Name: name}
-		}
+		} // else if !f.canIgnore(field) {
+		//	err = &NoReflection{Name: name}
+		//}
 	case reflect.Ptr:
 		// Handle pointers by allocating if necessary, then recursively calling
 		// ourselves.

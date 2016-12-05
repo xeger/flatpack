@@ -11,9 +11,10 @@ type simple struct {
 	Foo string
 	Bar []string
 	Baz struct {
-		Foo string
-		Bar int
-		Baz float64
+		Foo  string
+		Bar  int
+		Baz  float64
+		Quux uint
 	}
 	Quux []int
 }
@@ -34,12 +35,25 @@ type ignored struct {
 	baz struct {
 		foo int
 	} `flatpack:"ignore"`
+	quux *int `flatpack:"ignore"`
 }
 
 // Test that we avoid a new panic introduced in go 1.5:
 //   reflect.Value.Interface: cannot return value obtained from unexported field or method
 type badEmbedding struct {
-	simple
+	embedded struct {
+		Value int
+	}
+}
+
+// Test that we avoid a new panic introduced in go 1.5:
+//   reflect: reflect.Value.Set using value obtained using unexported field
+type badField struct {
+	value int
+}
+
+type badPointer struct {
+	value *int
 }
 
 type badType struct {
@@ -50,9 +64,14 @@ var _ = Describe("implementation", func() {
 	Describe(".assign()", func() {
 		It("panics over unsupported types", func() {
 			it := implementation{stubEnvironment(map[string]string{})}
-			unsupported := reflect.ValueOf(make(chan int))
+			unsup := reflect.ValueOf(make(chan int))
 			Expect(func() {
-				it.assign(unsupported, "", Key{})
+				it.assign(unsup, "", Key{})
+			}).To(Panic())
+
+			unsup2 := reflect.ValueOf(&badType{})
+			Expect(func() {
+				it.assign(unsup2, "", Key{})
 			}).To(Panic())
 		})
 	})
@@ -61,10 +80,11 @@ var _ = Describe("implementation", func() {
 		It("handles strings and numbers", func() {
 			fx := simple{}
 			env := map[string]string{
-				"FOO":     "foo",
-				"BAZ_FOO": "baz foo",
-				"BAZ_BAR": "42",
-				"BAZ_BAZ": "3.14159",
+				"FOO":      "foo",
+				"BAZ_FOO":  "baz foo",
+				"BAZ_BAR":  "42",
+				"BAZ_BAZ":  "3.14159",
+				"BAZ_QUUX": "42",
 			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
@@ -113,7 +133,12 @@ var _ = Describe("implementation", func() {
 
 		It("ignores fields when requested to", func() {
 			fx := ignored{}
-			env := map[string]string{"FOO": "foo"}
+			env := map[string]string{
+				"FOO":  "foo",
+				"BAR":  "bar",
+				"BAZ":  "baz",
+				"QUUX": "42",
+			}
 			it := implementation{stubEnvironment(env)}
 			err := it.Unmarshal(&fx)
 			Expect(err).To(Succeed())
@@ -121,6 +146,20 @@ var _ = Describe("implementation", func() {
 		})
 
 		Context("error reporting", func() {
+			It("complains about struct values", func() {
+				fx := simple{}
+				it := implementation{stubEnvironment(map[string]string{})}
+
+				err := it.Unmarshal(fx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("expected pointer to struct"))
+
+				var fx2 *simple
+				err = it.Unmarshal(fx2)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("expected non-nil pointer to struct"))
+			})
+
 			It("complains about malformed JSON", func() {
 				fx := simple{}
 				env := map[string]string{
@@ -135,9 +174,25 @@ var _ = Describe("implementation", func() {
 			})
 
 			It("complains about reflection without panicking", func() {
-				it := implementation{stubEnvironment(map[string]string{})}
+				it := implementation{stubEnvironment(map[string]string{
+					"EMBEDDED_VALUE": "42",
+					"VALUE":          "43",
+					"POINTER_VALUE":  "44",
+				})}
+
 				s := badEmbedding{}
+
 				err := it.Unmarshal(&s)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("reflection error"))
+
+				s2 := badField{}
+				err = it.Unmarshal(&s2)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("reflection error"))
+
+				s3 := badPointer{}
+				err = it.Unmarshal(&s3)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(MatchRegexp("reflection error"))
 			})
@@ -148,7 +203,17 @@ var _ = Describe("implementation", func() {
 				}
 				it := implementation{stubEnvironment(env)}
 				s := simple{}
+
 				err := it.Unmarshal(&s)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(MatchRegexp("malformed value"))
+
+				env = map[string]string{
+					"BAZ_QUUX": "not-a-number",
+				}
+				it = implementation{stubEnvironment(env)}
+
+				err = it.Unmarshal(&s)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(MatchRegexp("malformed value"))
 			})

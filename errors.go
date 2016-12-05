@@ -33,11 +33,16 @@ func (e *BadValue) Error() string {
 }
 
 // NoReflection is an error that indicates something went wrong when reflecting
-// on an unmarshalling target.
+// on an unmarshalling target. Generally, this is caused by trying to unmarshal
+// into a struct that has unexported fields (i.e. whose names begin with a
+// lower-case letter).
+//
+// To avoid this error, either remove the unexported fields from your struct
+// or mark them with the flatpack:"ignore" field tag.
 type NoReflection struct {
 	Name Key
 }
 
 func (e *NoReflection) Error() string {
-	return fmt.Sprintf("flatpack: reflection error; unexported field or type? (name=%s)", e.Name)
+	return fmt.Sprintf("flatpack: reflection error; unexported field (name=%s)", e.Name)
 }
